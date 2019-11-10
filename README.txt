@@ -1,7 +1,5 @@
-
 pyvalidate
 ==========
-
 
 .. Python method's parameter validation library, as a pythonic decorator
 
