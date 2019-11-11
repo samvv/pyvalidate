@@ -86,6 +86,13 @@ def make_when(test, body, orelse=[], orig=None):
     result.col_offset = to_copy.col_offset
     return result
 
+def enum(elements):
+    assert(len(elements) > 0)
+    if len(elements) == 1:
+        return elements[0]
+    else:
+        return ', '.join(elements[:-1]) + ' or ' + elements[-1]
+
 def compile_validator(predicate, ls, gs):
 
     p = predicate
@@ -119,6 +126,9 @@ def compile_validator(predicate, ls, gs):
         elif isinstance(node, gast.UnaryOp):
             if isinstance(node.op, gasdt.Not):
                 return get_message(node.operand, not is_not)
+        elif isinstance(node, gast.BoolOp):
+            if isinstance(node.op, gast.Or):
+                return enum(list(get_message(value) for value in node.values))
         raise NotImplementedError(f"could not generate a message for {node}")
 
     def generate_checks(expr, is_not=False):
@@ -143,7 +153,7 @@ def compile_validator(predicate, ls, gs):
                     if len(test_path) == 0:
                         new_body.append(make_return(orig=stmt) if stmt.value.value is True else make_yield_stmt(make_constant("no values allowed", orig=stmt)))
                     elif stmt.value.value is False:
-                        new_body += list(generate_checks(make_and(*test_path, orig=stmt)))
+                        new_body += list(generate_checks(make_and(*test_path, orig=stmt), True))
                     else:
                         new_body.append(make_when(make_and(*test_path, orig=stmt), [make_return(orig=stmt)], orig=stmt))
                 else:

@@ -7,20 +7,37 @@ class TestCompile(TestCase):
 
     def test_simple_equality(self):
 
-        def is_valid_1(value):
+        def is_valid(value):
             return value == 1
 
-        v1 = compile_validator(is_valid_1, locals(), globals())
+        v1 = compile_validator(is_valid, locals(), globals())
         self.assertTrue(v1.is_valid(1))
         self.assertFalse(v1.is_valid(2))
         self.assertFalse(v1.is_valid(False))
         self.assertFalse(v1.is_valid("Foo!"))
 
-        def is_valid_2(value):
-            if value == 1:
-                return True
-            return False
+    def test_early_return(self):
 
-        v2 = compile_validator(is_valid_2, locals(), globals())
-        self.assertTrue(v2.is_valid(1))
+        def is_valid(value):
+            if value != 1:
+                return False
+            return True
 
+        v1 = compile_validator(is_valid, locals(), globals())
+        self.assertTrue(v1.is_valid(1))
+        self.assertFalse(v1.is_valid(2))
+        self.assertFalse(v1.is_valid(False))
+        self.assertFalse(v1.is_valid("Foo!"))
+
+    def test_boolean_or(self):
+
+        def is_valid(value):
+            return value == 1 or value == 2
+
+        v1 = compile_validator(is_valid, locals(), globals())
+        self.assertTrue(v1.is_valid(1))
+        self.assertTrue(v1.is_valid(2))
+        self.assertFalse(v1.is_valid(3))
+        print(list(v1.validate(3)))
+        self.assertFalse(v1.is_valid(False))
+        self.assertFalse(v1.is_valid("Foo!"))
