@@ -3,14 +3,9 @@ from textwrap import dedent
 from inspect import getsource
 from . import gast
 from .util import to_human_readable
+from .translate import MsgPart
 
 class Validator:
-    def is_valid(self, value):
-        try:
-            next(self.validate(value))
-        except StopIteration:
-            return True
-        return False
     def __call__(self, *args, **kwargs):
         return self.is_valid(*args, **kwargs)
 
@@ -32,9 +27,9 @@ def describe_class(cls):
 
 class CompiledValidator(Validator):
     def __init__(self, func, ast, orig):
-        self.validate = func 
+        self.get_errors = func 
         self.compiled_ast = ast
-        self.source_predicate = orig
+        self.is_valid = orig
 
 def enum(elements):
     assert(len(elements) > 0)
@@ -42,6 +37,9 @@ def enum(elements):
         return elements[0]
     else:
         return ', '.join(elements[:-1]) + ' or ' + elements[-1]
+
+def make_msgpart(format, orig=None, **kwargs):
+    return gast.make_call(gast.make_var_ref('MsgPart', orig=orig), gast.make_const(format, orig=orig), orig=orig, **kwargs)
 
 def compile_validator(predicate, gs, ls):
 
@@ -57,15 +55,16 @@ def compile_validator(predicate, gs, ls):
     arg = p.args.args[0]
 
     def describe(node):
+
         if isinstance(node, gast.Constant):
-            return str(node.value)
+            return gast.make_to_str(node)
         elif isinstance(node, gast.Name):
             if node.id == arg.id:
-                return to_human_readable(arg.id)
+                return make_msgpart('{argument}', orig=node)
         elif isinstance(node, gast.Call):
             assert(isinstance(node.func, gast.Name))
             if node.func.id == 'len':
-                return 'the length of {describe(node.args.args[0])}'
+                return make_msgpart('the length of {value}', value=describe(node.args[0]), orig=node)
         raise NotImplementedError(f"could not describe the expression {node}")
 
     def get_message(node):
@@ -74,23 +73,23 @@ def compile_validator(predicate, gs, ls):
             left = node.left
             right = node.comparators[0]
             if isinstance(node.ops[0], gast.Eq):
-                return f"{describe(left)} must be equal to {describe(right)}"
+                return make_msgpart("{actual} must be equal to {expected}", actual=describe(left), expected=describe(right), orig=node)
             elif isinstance(node.ops[0], gast.NotEq):
-                return f"{describe(left)} may not be equal to {describe(right)}"
+                return make_msgpart("{actual} may not be equal to {expected}", actual=describe(left), expected=describe(right), orig=node)
             elif isinstance(node.ops[0], gast.LtE):
-                return f"{describe(left)} must be less than or equal to {describe(right)}"
+                return make_msgpart("{actual} must be less than or equal to {expected}", actual=describe(left), expected=describe(right), orig=node)
             elif isinstance(node.ops[0], gast.GtE):
-                return f"{describe(left)} must be greater than or equal to {describe(right)}"
+                return make_msgpart("{actual} must be greater than or equal to {expected}", actual=describe(left), expected=describe(right), orig=node)
             elif isinstance(node.ops[0], gast.Lt):
-                return f"{describe(left)} must be strict less than {describe(right)}"
+                return make_msgpart("{actual} must be strictly less than {expected}", actual=describe(left), expected=describe(right), orig=node)
             elif isinstance(node.ops[0], gast.Lt):
-                return f"{describe(left)} must be strict greater than {describe(right)}"
+                return make_msgpart("{actual} must be strictly greater than {expected}", actual=describe(left), expected=describe(right), orig=node)
         elif isinstance(node, gast.BoolOp):
             if isinstance(node.op, gast.Or):
-                return enum(list(get_message(value) for value in node.values))
+                return make_msgpart("{enum(alternatives)}", alternatives=gast.make_list((get_message(value) for value in node.values), orig=node), orig=node)
         elif isinstance(node, gast.Call):
             if isinstance(node.func, gast.Name) and node.func.id == 'isinstance':
-                return f"{describe(node.args.args[0])} must be {describe_class(node.ars.args[1])}"
+                return make_msgpart("{actual} must be {expected}", actual=describe(node.args[0]), expected=describe_class(node.args[1]), orig=node)
         raise NotImplementedError(f"could not generate a message for {node}")
 
     def generate_checks(expr, is_not=False):
@@ -103,7 +102,7 @@ def compile_validator(predicate, gs, ls):
         if isinstance(expr, gast.UnaryOp):
             if isinstance(expr.op, gast.Not):
                 return generate_checks(expr.operand, not is_not)
-        return [gast.make_when(expr if is_not else gast.make_not(expr), [gast.make_yield_stmt(gast.make_constant(get_message(expr), orig=expr))], [])]
+        return [gast.make_when(expr if is_not else gast.make_not(expr, orig=expr), [gast.make_yield_stmt(get_message(expr), orig=expr)], orig=expr)]
 
     def transform_body(body, test_path=[]):
         new_body = []
@@ -113,7 +112,7 @@ def compile_validator(predicate, gs, ls):
                     if not (stmt.value.value is True or stmt.value.value is False):
                         raise TypeError("return statements may only contain a literal expression of True or False for now")
                     if len(test_path) == 0:
-                        new_body.append(gast.make_return(orig=stmt) if stmt.value.value is True else gast.make_yield_stmt(gast.make_constant("no values allowed", orig=stmt)))
+                        new_body.append(gast.make_return(orig=stmt) if stmt.value.value is True else gast.make_yield_stmt(gast.make_const("no values allowed", orig=stmt)))
                     elif stmt.value.value is False:
                         new_body += list(generate_checks(gast.make_and(*test_path, orig=stmt), True))
                     else:
@@ -128,8 +127,10 @@ def compile_validator(predicate, gs, ls):
 
     new_func_def = gast.make_func_def('validate', gast.make_params(arg, orig=p), transform_body(p.body), orig=p)
     new_module = gast.gast_to_ast(gast.Module([new_func_def], []))
-    new_ls = dict()
-    exec(compile(new_module, filename='<compile_validator>', mode='exec'), gs, new_ls)
+    new_gs = dict(gs)
+    new_gs['MsgPart'] = MsgPart
+    new_ls = dict(ls)
+    exec(compile(new_module, filename='<compile_validator>', mode='exec'), new_gs, new_ls)
 
     return CompiledValidator(func=new_ls['validate'], ast=new_module, orig=predicate)
 
