@@ -13,7 +13,7 @@ with open(os.path.join(os.path.dirname(__file__),'pyvalidate', '__init__.py')) a
 here = os.path.abspath(os.path.dirname(__file__))
 
 # Get the long description from the README file (same way as in PyPa's sampleproject)
-with open(os.path.join(here, 'README.txt'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     readme = f.read()
 
 setup(
@@ -22,9 +22,9 @@ setup(
     author="Vahid Mardani",
     author_email="vahid.mardani@gmail.com",
     url="http://packages.python.org/pyvalidate",
-    description="Python method's parameter validation library, as a pythonic decorator",
-    maintainer="Vahid Mardani",
-    maintainer_email="vahid.mardani@gmail.com",
+    description="A data validation library for Python 3",
+    maintainer="Sam Vervaeck",
+    maintainer_email="vervaeck.sam@skynet.be",
     packages=["pyvalidate"],
     platforms=["any"],
     long_description=readme,
@@ -33,8 +33,10 @@ setup(
         "License :: Freeware",
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Software Development :: Libraries'
         ],
     )
