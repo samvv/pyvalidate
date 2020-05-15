@@ -1,42 +1,42 @@
-# -*- coding: utf-8 -*-
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
-import os
-import re
-# reading package version (same way sqlalchemy does)
-with open(os.path.join(os.path.dirname(__file__),'pyvalidate', '__init__.py')) as v_file:
-    package_version = re.compile(r".*__version__ = '(.*?)'",re.S).match(v_file.read()).group(1)
+from setuptools import setup, find_packages
+from os import path
 
-here = os.path.abspath(os.path.dirname(__file__))
+here = path.abspath(path.dirname(__file__))
 
-# Get the long description from the README file (same way as in PyPa's sampleproject)
-with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
+with open(path.join(here, 'README.md')) as f:
     readme = f.read()
 
 setup(
     name="pyvalidate",
-    version=package_version,
-    author="Vahid Mardani",
-    author_email="vahid.mardani@gmail.com",
-    url="http://packages.python.org/pyvalidate",
+    version='2.0.0',
     description="A data validation library for Python 3",
-    maintainer="Sam Vervaeck",
-    maintainer_email="vervaeck.sam@skynet.be",
-    packages=["pyvalidate"],
-    platforms=["any"],
     long_description=readme,
+    long_description_content_type='text/markdown',
+    url="http://packages.python.org/pyvalidate",
+    author="Sam Vervaeck",
+    author_email="samvv@pm.me",
+    package_dir={'': 'src'},
+    packages=find_packages(where='src'),
+    python_requires='>=3.5, <4',
+    install_requires=['gast'],
     classifiers=[
-        "Development Status :: 5 - Production/Stable",
-        "License :: Freeware",
+        "Development Status :: 4 - Beta",
+        "License :: OSI Approved :: MIT License",
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
+        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3 :: Only',
         'Topic :: Software Development :: Libraries'
-        ],
-    )
+    ],
+    keywords='validation validator schema tool web-api data',
+    project_urls={
+        'Bug Reports': 'https://github.com/samvv/pyvalidate/issues',
+        'Source': 'https://github.com/samvv/pyvalidate/'
+    }
+)
+
