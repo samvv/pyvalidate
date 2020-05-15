@@ -1,10 +1,9 @@
 Python Validation Library
 =========================
 
-This is the definitive validation library for Python 3 and above. Featuring
-automatic generation of error messages, a collection of built-in validators and
-support for the Python 3 `typing` module, your search for the perfect
-validation library has finally come to an end!
+This is an automated validation library for Python 3 and above. Instead of
+using complex schemas, it wraps around plain Python functions and converts them
+to user-friendly validators.
 
 ```py
 @validator
@@ -16,7 +15,7 @@ def is_valid_password(password):
         and password != 'p@ssw0rd'
 
 # works as you'd expect
-is_valid_password('areallygoodlongpasswordhaha') # True
+is_valid_password('areallygoodlongpassword') # True
 
 # prints "password must be longer than 8 characters"
 print(next(valid_password.get_errors('bob'))
@@ -85,12 +84,10 @@ The following features are planned:
 
 ### Using `SimpleRecord`
 
-The following demonstrates the use of `SimpleRecord`, which uses **pyvalidate**
+The following demonstrates the use of `SimpleRecord` in `examples/`, which uses **pyvalidate**
 under the hood:
 
 ```py
-from pyvalidate import SimpleRecord
-
 class Address(SimpleRecord):
   street: str
   house_number: int
@@ -136,9 +133,6 @@ Person.is_valid('Jan', 'Vercouteren', None, None, 34) # False
 
 ## License
 
-© 2012 Vahid Mardani
-
-© 2019 Sam Vervaeck
-
-The license of this software has yet to be determined.
+This software is generously licensed under the MIT license, which means you may
+do virtually anything with it except claiming that you wrote it.
 
