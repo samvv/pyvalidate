@@ -31,13 +31,6 @@ class CompiledValidator(Validator):
         self.compiled_ast = ast
         self.is_valid = orig
 
-def enum(elements):
-    assert(len(elements) > 0)
-    if len(elements) == 1:
-        return elements[0]
-    else:
-        return ', '.join(elements[:-1]) + ' or ' + elements[-1]
-
 def make_msgpart(format, orig=None, **kwargs):
     return gast.make_call(gast.make_var_ref('MsgPart', orig=orig), gast.make_const(format, orig=orig), orig=orig, **kwargs)
 
@@ -55,24 +48,34 @@ def compile_validator(predicate, gs, ls):
     arg = p.args.args[0]
 
     def describe(node):
-
         if isinstance(node, gast.Constant):
             return gast.make_to_str(node)
         elif isinstance(node, gast.Name):
             if node.id == arg.id:
-                return make_msgpart('{argument}', orig=node)
+                return make_msgpart(arg.id, orig=node)
         elif isinstance(node, gast.Call):
             assert(isinstance(node.func, gast.Name))
             if node.func.id == 'len':
                 return make_msgpart('the length of {value}', value=describe(node.args[0]), orig=node)
+        elif isinstance(node, gast.List):
+            return make_msgpart('a list of {elements:enum}', elements=gast.make_list((describe(element) for element in node.elts), orig=node), orig=node)
         raise NotImplementedError(f"could not describe the expression {node}")
+
+    def describe_in(node):
+        if isinstance(node, gast.List):
+            return make_msgpart("{elements:enum}", elements=gast.make_list((describe(element) for element in node.elts), orig=node), orig=node)
+        raise NotImplementedError(f"could not describe right-hand-side {node} of 'in' expression")
 
     def get_message(node):
         if isinstance(node, gast.Compare):
             assert(len(node.ops) == 1)
             left = node.left
             right = node.comparators[0]
-            if isinstance(node.ops[0], gast.Eq):
+            if isinstance(node.ops[0], gast.In):
+                return make_msgpart('{actual} must be either of {expected}', actual=describe(left), expected=describe_in(right), orig=node)
+            elif isinstance(node.ops[0], gast.NotIn):
+                return make_msgpart('{actual} may not be either of {expeced}', actual=describe(left), expected=describe_in(right), orig=node)
+            elif isinstance(node.ops[0], gast.Eq):
                 return make_msgpart("{actual} must be equal to {expected}", actual=describe(left), expected=describe(right), orig=node)
             elif isinstance(node.ops[0], gast.NotEq):
                 return make_msgpart("{actual} may not be equal to {expected}", actual=describe(left), expected=describe(right), orig=node)
@@ -86,7 +89,7 @@ def compile_validator(predicate, gs, ls):
                 return make_msgpart("{actual} must be strictly greater than {expected}", actual=describe(left), expected=describe(right), orig=node)
         elif isinstance(node, gast.BoolOp):
             if isinstance(node.op, gast.Or):
-                return make_msgpart("{enum(alternatives)}", alternatives=gast.make_list((get_message(value) for value in node.values), orig=node), orig=node)
+                return make_msgpart("{alternatives:enum}", alternatives=gast.make_list((get_message(value) for value in node.values), orig=node), orig=node)
         elif isinstance(node, gast.Call):
             if isinstance(node.func, gast.Name) and node.func.id == 'isinstance':
                 return make_msgpart("{actual} must be {expected}", actual=describe(node.args[0]), expected=describe_class(node.args[1]), orig=node)
