@@ -9,10 +9,17 @@ except ImportError:
 from pyvalidate.decorators import validator
 from pyvalidate.compile import compile_validator
 
+def has_next(iterable):
+    try:
+        next(iterable)
+    except StopIteration:
+        return False
+    return True
+
 class TestCompile(TestCase):
 
     def assert_validates(self, validator, value):
-        self.assertEqual(validator.source_predicate(value), validator(value))
+        self.assertEqual(validator.is_valid(value), not has_next(validator.get_errors(value)))
 
     def test_simple_equality(self):
 
@@ -24,6 +31,7 @@ class TestCompile(TestCase):
         self.assert_validates(is_valid, 2)
         self.assert_validates(is_valid, False)
         self.assert_validates(is_valid, "Foo!")
+        print(str(list(is_valid.get_errors("foo"))[0]))
 
     def test_early_return(self):
 
@@ -64,4 +72,15 @@ class TestCompile(TestCase):
         self.assert_validates(valid_password, 'w3rdp@zzw0rdZw0rkT00')
         self.assert_validates(valid_password, 'password')
         self.assert_validates(valid_password, 'soshort')
+
+    def test_in_not_in(self):
+
+        @validator
+        def is_valid(value):
+            return value in ['test', 'foo', 'bar']
+
+        msgs = list(is_valid.get_errors('bax'))
+        self.assertEqual(str(msgs[0]), "value must be either of 'test', 'foo' or 'bar'")
+        self.assert_validates(is_valid, 'test')
+        self.assert_validates(is_valid, 'bax')
 
