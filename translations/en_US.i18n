@@ -1,0 +1,16 @@
+
+import inflect
+
+def enum(ctx, elements):
+    assert(len(elements) > 0)
+    if len(elements) == 1:
+        return elements[0]
+    else:
+        return ', '.join(elements[:-1]) + ' or ' + elements[-1]
+
+def plural(ctx, noun):
+    return inflect.plural_noun(noun)
+
+def singular(ctx, noun):
+    return inflect.singular_noun(noun)
+
